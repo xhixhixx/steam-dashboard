@@ -1,0 +1,85 @@
+import type { SteamUserSummary } from "@/features/steam-dashboard/api/steam";
+
+export function formatHours(minutes: number) {
+  return `${Math.round(minutes / 60).toLocaleString()}`;
+}
+
+export function formatPercent(value: number) {
+  return `${Math.round(value)}%`;
+}
+
+export function getDashboardMetrics(summary: SteamUserSummary) {
+  const totalGames = summary.ownedGames.length;
+  const totalMinutes = summary.ownedGames.reduce(
+    (total, game) => total + game.playtime_forever,
+    0,
+  );
+  const recentlyPlayedMinutes = summary.recentGames.reduce(
+    (total, game) => total + game.playtime_2weeks,
+    0,
+  );
+  const playedGames = summary.ownedGames.filter(
+    (game) => game.playtime_forever > 0,
+  ).length;
+  const unplayedGames = summary.ownedGames.filter(
+    (game) => game.playtime_forever === 0,
+  ).length;
+  const averageHoursPerPlayedGame =
+    playedGames === 0 ? 0 : totalMinutes / 60 / playedGames;
+  const completionRate = totalGames === 0 ? 0 : (playedGames / totalGames) * 100;
+
+  return {
+    totalGames,
+    totalMinutes,
+    recentlyPlayedMinutes,
+    playedGames,
+    unplayedGames,
+    averageHoursPerPlayedGame,
+    completionRate,
+  };
+}
+
+export function getPlaytimeBuckets(summary: SteamUserSummary) {
+  const buckets = [
+    { label: "Epic", color: "#66C0F4", count: 0 },
+    { label: "Core", color: "#3b82f6", count: 0 },
+    { label: "Regular", color: "#0ea5e9", count: 0 },
+    { label: "Sampled", color: "#0284c7", count: 0 },
+    { label: "Unplayed", color: "#0f3b63", count: 0 },
+  ];
+
+  for (const game of summary.ownedGames) {
+    const hours = game.playtime_forever / 60;
+
+    if (hours === 0) {
+      buckets[4].count += 1;
+    } else if (hours < 5) {
+      buckets[3].count += 1;
+    } else if (hours < 25) {
+      buckets[2].count += 1;
+    } else if (hours < 100) {
+      buckets[1].count += 1;
+    } else {
+      buckets[0].count += 1;
+    }
+  }
+
+  const total = summary.ownedGames.length || 1;
+  let currentAngle = 0;
+  const segments = buckets.map((bucket) => {
+    const portion = (bucket.count / total) * 360;
+    const start = currentAngle;
+    currentAngle += portion;
+
+    return {
+      ...bucket,
+      percentage: (bucket.count / total) * 100,
+      segment: `${bucket.color} ${start.toFixed(1)}deg ${currentAngle.toFixed(1)}deg`,
+    };
+  });
+
+  return {
+    buckets: segments,
+    background: `conic-gradient(${segments.map((bucket) => bucket.segment).join(", ")})`,
+  };
+}

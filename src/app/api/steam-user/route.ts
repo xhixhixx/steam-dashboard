@@ -3,7 +3,7 @@ import {
   getSteamErrorDetails,
   getSteamUserSummaryByIdentifier,
   normalizeSteamIdentifier,
-} from "@/lib/steam";
+} from "@/features/steam-dashboard/api/steam";
 
 export async function GET(request: NextRequest) {
   try {

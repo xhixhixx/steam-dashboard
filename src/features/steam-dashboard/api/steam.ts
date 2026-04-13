@@ -237,6 +237,25 @@ export function formatUnixDate(unixSeconds?: number) {
   });
 }
 
+export function getPersonaStatus(personaState: number) {
+  switch (personaState) {
+    case 1:
+      return "Online";
+    case 2:
+      return "Busy";
+    case 3:
+      return "Away";
+    case 4:
+      return "Snooze";
+    case 5:
+      return "Looking to trade";
+    case 6:
+      return "Looking to play";
+    default:
+      return "Offline";
+  }
+}
+
 export function getSteamCapsuleImageUrl(appid: number) {
   return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${appid}/capsule_184x69.jpg`;
 }
