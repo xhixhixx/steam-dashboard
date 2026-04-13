@@ -141,7 +141,7 @@ async function getSteamTagsByAppId(
     return tagsByAppId;
   }
 
-  const chunkSize = 25;
+  const chunkSize = 20;
   const appIdChunks = Array.from(
     { length: Math.ceil(appIds.length / chunkSize) },
     (_, index) => appIds.slice(index * chunkSize, (index + 1) * chunkSize),
@@ -149,34 +149,36 @@ async function getSteamTagsByAppId(
 
   await Promise.all(
     appIdChunks.map(async (chunk) => {
-      const params = new URLSearchParams({
-        appids: chunk.join(","),
-        l: "english",
-      });
+      await Promise.all(
+        chunk.map(async (appId) => {
+          const params = new URLSearchParams({
+            appids: String(appId),
+            l: "english",
+            filters: "genres",
+          });
 
-      const response = await fetch(
-        `https://store.steampowered.com/api/appdetails?${params}`,
+          const response = await fetch(
+            `https://store.steampowered.com/api/appdetails?${params}`,
+          );
+
+          if (!response.ok) {
+            return;
+          }
+
+          const payload = (await response.json()) as SteamStoreAppDetailsResponse;
+          const details = payload[String(appId)];
+          const tags =
+            details?.success && details.data?.genres?.length
+              ? details.data.genres
+                  .map((genre) => genre.description.trim())
+                  .filter(Boolean)
+              : [];
+
+          if (tags.length > 0) {
+            tagsByAppId.set(appId, tags);
+          }
+        }),
       );
-
-      if (!response.ok) {
-        return;
-      }
-
-      const payload = (await response.json()) as SteamStoreAppDetailsResponse;
-
-      for (const appId of chunk) {
-        const details = payload[String(appId)];
-        const tags =
-          details?.success && details.data?.genres?.length
-            ? details.data.genres
-                .map((genre) => genre.description.trim())
-                .filter(Boolean)
-            : [];
-
-        if (tags.length > 0) {
-          tagsByAppId.set(appId, tags);
-        }
-      }
     }),
   );
 
