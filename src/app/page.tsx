@@ -109,31 +109,46 @@ function getDashboardMetrics(summary: SteamSummary) {
 }
 
 function getPlaytimeBuckets(summary: SteamSummary) {
-  const buckets = [
-    { label: "Epic", color: "#66C0F4", count: 0 },
-    { label: "Core", color: "#3b82f6", count: 0 },
-    { label: "Regular", color: "#0ea5e9", count: 0 },
-    { label: "Sampled", color: "#0284c7", count: 0 },
-    { label: "Unplayed", color: "#0f3b63", count: 0 },
+  const palette = [
+    "#66C0F4",
+    "#3b82f6",
+    "#0ea5e9",
+    "#0284c7",
+    "#0f3b63",
+    "#1d4ed8",
+    "#2563eb",
   ];
+  const tagCounts = new Map<string, number>();
 
   for (const game of summary.ownedGames) {
-    const hours = game.playtime_forever / 60;
-
-    if (hours === 0) {
-      buckets[4].count += 1;
-    } else if (hours < 5) {
-      buckets[3].count += 1;
-    } else if (hours < 25) {
-      buckets[2].count += 1;
-    } else if (hours < 100) {
-      buckets[1].count += 1;
-    } else {
-      buckets[0].count += 1;
+    if (game.playtime_forever <= 0) {
+      continue;
     }
+
+    const primaryTag = game.tags?.[0] ?? "Other";
+    tagCounts.set(primaryTag, (tagCounts.get(primaryTag) ?? 0) + 1);
   }
 
-  const total = summary.ownedGames.length || 1;
+  const buckets = Array.from(tagCounts.entries())
+    .sort((left, right) => right[1] - left[1])
+    .map(([label, count], index) => ({
+      label,
+      color: palette[index % palette.length],
+      count,
+    }));
+
+  if (buckets.length === 0) {
+    buckets.push({
+      label: "No played games yet",
+      color: palette[0],
+      count: 1,
+    });
+  }
+
+  const playedGames = summary.ownedGames.filter(
+    (game) => game.playtime_forever > 0,
+  ).length;
+  const total = playedGames || 1;
   let currentAngle = 0;
   const segments = buckets.map((bucket) => {
     const portion = (bucket.count / total) * 360;
@@ -149,6 +164,7 @@ function getPlaytimeBuckets(summary: SteamSummary) {
 
   return {
     buckets: segments,
+    playedGames,
     background: `conic-gradient(${segments.map((bucket) => bucket.segment).join(", ")})`,
   };
 }
@@ -454,11 +470,11 @@ function PlaytimeBreakdown({ summary }: { summary: SteamSummary }) {
         <div>
           <h3 className="text-[15px] font-semibold text-white">Playtime DNA</h3>
           <p className="mt-0.5 text-[12px] text-slate-500">
-            Library pacing breakdown
+            Played games by Steam tag
           </p>
         </div>
         <span className="rounded-full border border-[#1f2937] bg-[#0b1220] px-2 py-1 text-[11px] text-slate-400">
-          {summary.ownedGames.length} games
+          {breakdown.playedGames} played
         </span>
       </div>
       <div className="grid items-center gap-6 sm:grid-cols-[1.1fr_0.9fr]">

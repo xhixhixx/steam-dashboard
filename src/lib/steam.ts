@@ -27,6 +27,7 @@ export type SteamOwnedGame = {
   name: string;
   img_icon_url?: string;
   playtime_forever: number;
+  tags?: string[];
 };
 
 export type SteamRecentGame = {
@@ -69,6 +70,17 @@ type SteamRecentlyPlayedGamesResponse = {
     games?: SteamRecentGame[];
   };
 };
+
+type SteamStoreAppDetails = {
+  success: boolean;
+  data?: {
+    genres?: Array<{
+      description: string;
+    }>;
+  };
+};
+
+type SteamStoreAppDetailsResponse = Record<string, SteamStoreAppDetails>;
 
 function getSteamApiKey() {
   const apiKey = process.env.STEAM_API_KEY;
@@ -120,6 +132,57 @@ async function fetchSteamJson<T>(
   return (await response.json()) as T;
 }
 
+async function getSteamTagsByAppId(
+  appIds: number[],
+): Promise<Map<number, string[]>> {
+  const tagsByAppId = new Map<number, string[]>();
+
+  if (appIds.length === 0) {
+    return tagsByAppId;
+  }
+
+  const chunkSize = 25;
+  const appIdChunks = Array.from(
+    { length: Math.ceil(appIds.length / chunkSize) },
+    (_, index) => appIds.slice(index * chunkSize, (index + 1) * chunkSize),
+  );
+
+  await Promise.all(
+    appIdChunks.map(async (chunk) => {
+      const params = new URLSearchParams({
+        appids: chunk.join(","),
+        l: "english",
+      });
+
+      const response = await fetch(
+        `https://store.steampowered.com/api/appdetails?${params}`,
+      );
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as SteamStoreAppDetailsResponse;
+
+      for (const appId of chunk) {
+        const details = payload[String(appId)];
+        const tags =
+          details?.success && details.data?.genres?.length
+            ? details.data.genres
+                .map((genre) => genre.description.trim())
+                .filter(Boolean)
+            : [];
+
+        if (tags.length > 0) {
+          tagsByAppId.set(appId, tags);
+        }
+      }
+    }),
+  );
+
+  return tagsByAppId;
+}
+
 export async function getSteamUserSummary(
   steamUserId: string,
 ): Promise<SteamUserSummary> {
@@ -154,13 +217,21 @@ export async function getSteamUserSummary(
   const ownedGames = [...(ownedGamesSummary.response?.games ?? [])].sort(
     (left, right) => right.playtime_forever - left.playtime_forever,
   );
+  const playedAppIds = ownedGames
+    .filter((game) => game.playtime_forever > 0)
+    .map((game) => game.appid);
+  const tagsByAppId = await getSteamTagsByAppId(playedAppIds);
+  const ownedGamesWithTags = ownedGames.map((game) => ({
+    ...game,
+    tags: tagsByAppId.get(game.appid) ?? [],
+  }));
   const recentGames = [...(recentGamesSummary.response?.games ?? [])].sort(
     (left, right) => right.playtime_2weeks - left.playtime_2weeks,
   );
 
   return {
     player,
-    ownedGames,
+    ownedGames: ownedGamesWithTags,
     recentGames,
   };
 }
