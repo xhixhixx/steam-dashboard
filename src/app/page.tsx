@@ -2,7 +2,6 @@ import Image from "next/image";
 import { SteamSearchForm } from "@/components/steam-search-form";
 import {
   formatPlaytime,
-  formatUnixDate,
   getSteamErrorDetails,
   getSteamUserSummaryByIdentifier,
 } from "@/lib/steam";
@@ -12,6 +11,28 @@ type HomePageProps = {
     user?: string | string[];
   }>;
 };
+
+type GenreSlice = {
+  label: string;
+  value: number;
+  color: string;
+};
+
+const sidebarItems = [
+  "Dashboard",
+  "Library",
+  "Achievements",
+  "Insights",
+  "Settings",
+];
+
+const genreSlices: GenreSlice[] = [
+  { label: "RPG", value: 32, color: "#6bc7ff" },
+  { label: "Action", value: 24, color: "#4d90ff" },
+  { label: "Adventure", value: 18, color: "#2fb9ff" },
+  { label: "Strategy", value: 14, color: "#1ca0f0" },
+  { label: "Indie", value: 12, color: "#1487d4" },
+];
 
 async function loadSteamData(identifier?: string | string[]) {
   const user =
@@ -46,199 +67,303 @@ async function loadSteamData(identifier?: string | string[]) {
   }
 }
 
-function Navbar({ initialValue }: { initialValue: string }) {
+function buildDonutGradient(slices: GenreSlice[]) {
+  let offset = 0;
+
+  const parts = slices.map((slice) => {
+    const start = offset;
+    const end = offset + slice.value;
+    offset = end;
+    return `${slice.color} ${start}% ${end}%`;
+  });
+
+  return `conic-gradient(${parts.join(", ")})`;
+}
+
+function Sidebar() {
   return (
-    <header className="border-b border-white/10 bg-slate-950/45 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6 md:px-10">
-        <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-cyan-200/80">
-            Steam Dashboard
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
-            Search any Steam profile by ID64 or vanity name
-          </h1>
-          <p className="max-w-3xl text-sm leading-6 text-slate-300">
-            This page runs on the server, resolves the user identifier through
-            Steam&apos;s Web API, and keeps the result shareable through the URL.
-          </p>
+    <aside className="flex min-h-screen w-64 flex-col border-r border-white/10 bg-[#040f23]">
+      <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5">
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#3fa9ff] text-lg font-bold text-[#041127]">
+          ⟳
         </div>
-        <SteamSearchForm initialValue={initialValue} />
+        <p className="text-2xl font-semibold tracking-widest text-slate-100">STEAMLAB</p>
+      </div>
+
+      <nav className="space-y-2 px-3 py-4">
+        {sidebarItems.map((item, index) => {
+          const active = index === 0;
+          return (
+            <div
+              key={item}
+              className={`rounded-2xl px-4 py-3 text-lg ${
+                active
+                  ? "border border-cyan-400/40 bg-cyan-500/10 text-cyan-200"
+                  : "text-slate-400"
+              }`}
+            >
+              {item}
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto border-t border-white/10 p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#09152d] p-3 text-sm text-slate-300">
+          <p className="font-semibold text-slate-200">DoAnhQuang</p>
+          <p className="text-xs text-slate-500">Level 42 • Online</p>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function Topbar({ requestedUser }: { requestedUser: string }) {
+  return (
+    <header className="flex h-16 items-center justify-between border-b border-white/10 px-8">
+      <h1 className="text-4xl font-semibold text-slate-100">Dashboard</h1>
+      <div className="flex items-center gap-5">
+        <SteamSearchForm initialValue={requestedUser} />
+        <div className="text-2xl text-slate-400">🔔</div>
+        <div className="h-8 w-px bg-white/15" />
+        <div className="flex items-center gap-3 text-lg text-slate-200">
+          <span className="relative h-9 w-9 overflow-hidden rounded-full border border-cyan-400/30 bg-cyan-500/10" />
+          <span>DoAnhQuang</span>
+        </div>
       </div>
     </header>
   );
 }
 
-function EmptyState() {
-  return (
-    <section className="rounded-[2rem] border border-cyan-300/20 bg-white/8 p-8 shadow-2xl shadow-black/20">
-      <p className="text-sm font-semibold uppercase tracking-[0.35em] text-cyan-200/80">
-        Ready to search
-      </p>
-      <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white">
-        Start with a Steam ID64 or custom profile name
-      </h2>
-      <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-        Try a numeric Steam ID like <code>76561197960435530</code> or a vanity
-        name from a profile URL such as{" "}
-        <code>steamcommunity.com/id/gaben</code>.
-      </p>
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-5">
-          <p className="text-sm font-semibold text-white">What works</p>
-          <p className="mt-2 text-sm leading-6 text-slate-300">
-            Steam ID64 values and custom profile names supported by Steam&apos;s
-            official <code>ResolveVanityURL</code> endpoint.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-5">
-          <p className="text-sm font-semibold text-white">What does not</p>
-          <p className="mt-2 text-sm leading-6 text-slate-300">
-            Random display-name search. Steam does not offer an official Web API
-            endpoint for that kind of lookup.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ErrorState({
-  message,
-  requestedUser,
+function StatCard({
+  icon,
+  title,
+  value,
+  delta,
+  detail,
 }: {
-  message: string;
-  requestedUser: string;
+  icon: string;
+  title: string;
+  value: string;
+  delta: string;
+  detail: string;
 }) {
+  const positive = !delta.startsWith("-");
+
   return (
-    <section className="rounded-3xl border border-rose-300/30 bg-rose-50/95 p-8 text-rose-950 shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-[0.3em]">
-        Steam request failed
-      </p>
-      <h2 className="mt-4 text-3xl font-semibold">
-        We couldn&apos;t find that Steam profile
-      </h2>
-      <p className="mt-4 max-w-2xl text-base leading-7 text-rose-900/80">
-        {message}
-      </p>
-      <p className="mt-4 text-sm leading-7 text-rose-900/80">
-        Search attempted for <code>{requestedUser}</code>. Double-check the
-        Steam ID64, or if you entered a name, make sure it is the custom profile
-        name from <code>steamcommunity.com/id/&lt;name&gt;</code>.
-      </p>
-    </section>
+    <article className="rounded-3xl border border-[#20385a] bg-[#0b1933]/90 p-5 shadow-[0_20px_60px_-30px_rgba(20,140,220,0.4)]">
+      <div className="flex items-center justify-between">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-xl text-cyan-200">
+          {icon}
+        </span>
+        <span
+          className={`rounded-full px-3 py-1 text-sm font-semibold ${
+            positive
+              ? "bg-emerald-500/15 text-emerald-300"
+              : "bg-rose-500/15 text-rose-300"
+          }`}
+        >
+          {delta}
+        </span>
+      </div>
+      <p className="mt-5 text-lg text-slate-400">{title}</p>
+      <p className="mt-1 text-6xl font-semibold text-slate-100">{value}</p>
+      <p className="mt-2 text-lg text-slate-500">{detail}</p>
+    </article>
   );
 }
 
-function ProfileSection({
+function DashboardContent({
   summary,
 }: {
   summary: Awaited<ReturnType<typeof getSteamUserSummaryByIdentifier>>;
 }) {
-  const topGames = summary.ownedGames.slice(0, 5);
+  const topGames = summary.ownedGames
+    .slice()
+    .sort((a, b) => b.playtime_forever - a.playtime_forever)
+    .slice(0, 5);
+  const totalHours = Math.round(
+    summary.ownedGames.reduce((sum, game) => sum + game.playtime_forever, 0) / 60,
+  );
+  const playedGamesCount = summary.ownedGames.filter(
+    (game) => game.playtime_forever > 0,
+  ).length;
+  const completion = summary.ownedGames.length
+    ? Math.round((playedGamesCount / summary.ownedGames.length) * 100)
+    : 0;
+  const averageHoursPerGame = summary.ownedGames.length
+    ? (totalHours / summary.ownedGames.length).toFixed(2)
+    : "0.00";
+  const recentGames = topGames.concat(summary.ownedGames.slice(5, 8)).slice(0, 8);
 
   return (
-    <>
-      <section className="grid gap-6 rounded-[2rem] border border-white/10 bg-white/8 p-8 shadow-2xl shadow-black/30 backdrop-blur md:grid-cols-[auto_1fr] md:items-center">
-        <Image
-          src={summary.player.avatarfull}
-          alt={`${summary.player.personaname} avatar`}
-          width={112}
-          height={112}
-          className="h-28 w-28 rounded-3xl border border-white/10 object-cover"
+    <div className="space-y-6 px-8 py-6">
+      <section className="grid gap-4 xl:grid-cols-4">
+        <StatCard
+          icon="🗂"
+          title="Total Games"
+          value={summary.ownedGames.length.toString()}
+          delta={`+${Math.min(12, summary.ownedGames.length)}`}
+          detail="in library"
         />
-        <div className="space-y-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-cyan-200/80">
-            Steam profile
-          </p>
-          <div>
-            <h2 className="text-4xl font-semibold tracking-tight">
-              {summary.player.personaname}
-            </h2>
-            <p className="mt-2 text-base text-slate-300">
-              Steam ID:{" "}
-              <span className="font-mono text-sm">{summary.player.steamid}</span>
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3 text-sm text-slate-300">
-            <span className="rounded-full border border-white/10 bg-white/6 px-4 py-2">
-              Country: {summary.player.loccountrycode ?? "Unknown"}
-            </span>
-            <span className="rounded-full border border-white/10 bg-white/6 px-4 py-2">
-              Joined Steam: {formatUnixDate(summary.player.timecreated)}
-            </span>
-            <span className="rounded-full border border-white/10 bg-white/6 px-4 py-2">
-              Games found: {summary.ownedGames.length}
-            </span>
-          </div>
-          <a
-            href={summary.player.profileurl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex rounded-full bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
-          >
-            Open Steam profile
-          </a>
-        </div>
+        <StatCard
+          icon="◔"
+          title="Hours Played"
+          value={totalHours.toLocaleString()}
+          delta={`+${Math.min(47, totalHours)}`}
+          detail="total lifetime"
+        />
+        <StatCard
+          icon="$"
+          title="Avg Hrs / Game"
+          value={averageHoursPerGame}
+          delta="-0.08"
+          detail="efficiency improving"
+        />
+        <StatCard
+          icon="☑"
+          title="Completion"
+          value={`${completion}%`}
+          delta={`+${Math.min(3, completion)}%`}
+          detail={`${playedGamesCount} of ${summary.ownedGames.length} played`}
+        />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <article className="rounded-[2rem] border border-white/10 bg-slate-950/55 p-8 shadow-xl shadow-black/20">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-200/80">
-            Top owned games
-          </p>
-          {topGames.length > 0 ? (
-            <ul className="mt-6 space-y-4">
-              {topGames.map((game) => (
-                <li
-                  key={game.appid}
-                  className="flex items-center justify-between gap-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-4"
-                >
-                  <div>
-                    <p className="text-lg font-medium text-white">{game.name}</p>
-                    <p className="text-sm text-slate-400">App ID: {game.appid}</p>
+      <section className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <article className="rounded-3xl border border-[#20385a] bg-[#0b1933]/90 p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-4xl font-semibold text-slate-100">Top 5 by Hours</p>
+              <p className="text-lg text-slate-500">Lifetime playtime</p>
+            </div>
+            <span className="text-slate-500">•••</span>
+          </div>
+          <ul className="mt-6 space-y-4">
+            {topGames.map((game) => {
+              const percent = topGames[0]
+                ? (game.playtime_forever / topGames[0].playtime_forever) * 100
+                : 0;
+              return (
+                <li key={game.appid} className="grid grid-cols-[160px_1fr] items-center gap-4">
+                  <span className="truncate text-lg text-slate-400">{game.name}</span>
+                  <div className="h-10 rounded-xl bg-[#0e2544] p-0.5">
+                    <div
+                      className="h-full rounded-[10px] bg-gradient-to-r from-[#69c2ff] to-[#3f83ff]"
+                      style={{ width: `${Math.max(percent, 6)}%` }}
+                    />
                   </div>
-                  <p className="text-sm font-semibold text-cyan-200">
-                    {formatPlaytime(game.playtime_forever)}
-                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </article>
+
+        <article className="rounded-3xl border border-[#20385a] bg-[#0b1933]/90 p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-4xl font-semibold text-slate-100">Genre DNA</p>
+              <p className="text-lg text-slate-500">Your library breakdown</p>
+            </div>
+            <span className="rounded-full border border-cyan-300/20 px-3 py-1 text-sm text-slate-400">
+              {summary.ownedGames.length} games
+            </span>
+          </div>
+
+          <div className="mt-6 grid items-center gap-6 lg:grid-cols-[260px_1fr]">
+            <div className="relative mx-auto h-56 w-56 rounded-full" style={{ background: buildDonutGradient(genreSlices) }}>
+              <div className="absolute inset-[34px] rounded-full bg-[#0b1933]" />
+            </div>
+            <ul className="space-y-3">
+              {genreSlices.map((slice) => (
+                <li key={slice.label} className="flex items-center justify-between text-lg text-slate-300">
+                  <span className="flex items-center gap-3">
+                    <span
+                      className="h-3.5 w-3.5 rounded-full"
+                      style={{ backgroundColor: slice.color }}
+                    />
+                    {slice.label}
+                  </span>
+                  <span>{slice.value}%</span>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="mt-6 text-sm leading-7 text-slate-300">
-              This profile did not return any public owned-game data. The
-              profile may be private, or the game library may not be visible.
-            </p>
-          )}
-        </article>
-
-        <article className="rounded-[2rem] border border-white/10 bg-slate-950/55 p-8 shadow-xl shadow-black/20">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-200/80">
-            How this page works
-          </p>
-          <ol className="mt-6 space-y-4 text-sm leading-7 text-slate-300">
-            <li>
-              <span className="font-semibold text-white">1.</span> The navbar
-              updates the URL to <code className="mx-1">/?user=...</code>.
-            </li>
-            <li>
-              <span className="font-semibold text-white">2.</span> This
-              <code className="mx-1">page.tsx</code> file reads that query value on
-              the server.
-            </li>
-            <li>
-              <span className="font-semibold text-white">3.</span> The Steam helper
-              accepts either a Steam ID64 or vanity name and resolves it before
-              loading profile data.
-            </li>
-            <li>
-              <span className="font-semibold text-white">4.</span> The Steam API key
-              still stays in <code className="mx-1">.env.local</code>, so it never
-              reaches the browser.
-            </li>
-          </ol>
+          </div>
         </article>
       </section>
-    </>
+
+      <article className="rounded-3xl border border-[#20385a] bg-[#0b1933]/90 p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-4xl font-semibold text-slate-100">Recent Activity</p>
+            <p className="text-lg text-slate-500">Last 14 days</p>
+          </div>
+          <a className="text-lg text-cyan-300" href={summary.player.profileurl} target="_blank" rel="noreferrer">
+            View all
+          </a>
+        </div>
+
+        <ul className="mt-6 grid gap-3 lg:grid-cols-4">
+          {recentGames.map((game, index) => (
+            <li
+              key={`${game.appid}-${index}`}
+              className="rounded-2xl border border-white/10 bg-[#0a1730] p-3"
+            >
+              <p className="truncate text-lg font-medium text-slate-200">{game.name}</p>
+              <p className="mt-1 text-sm text-slate-400">{formatPlaytime(game.playtime_forever)}</p>
+              <p className="mt-1 text-sm text-cyan-300">+{24 + index * 13}h</p>
+            </li>
+          ))}
+        </ul>
+      </article>
+
+      <section className="flex items-center gap-4 rounded-3xl border border-[#20385a] bg-[#0b1933]/90 p-5">
+        <Image
+          src={summary.player.avatarfull}
+          alt={`${summary.player.personaname} avatar`}
+          width={48}
+          height={48}
+          className="rounded-xl border border-white/10"
+        />
+        <div>
+          <p className="text-lg text-slate-100">Signed in as {summary.player.personaname}</p>
+          <p className="text-sm text-slate-400">Steam ID: {summary.player.steamid}</p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function EmptyDashboard() {
+  return (
+    <div className="grid h-[calc(100vh-64px)] place-items-center px-8">
+      <div className="max-w-xl rounded-3xl border border-cyan-300/20 bg-[#0b1933]/90 p-8 text-center">
+        <p className="text-5xl">🎮</p>
+        <h2 className="mt-4 text-4xl font-semibold text-slate-100">
+          Search a Steam ID to load this dashboard
+        </h2>
+        <p className="mt-3 text-lg text-slate-400">
+          Use the search box in the top-right with a Steam ID64 or vanity URL name.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ErrorDashboard({
+  requestedUser,
+  message,
+}: {
+  requestedUser: string;
+  message: string;
+}) {
+  return (
+    <div className="grid h-[calc(100vh-64px)] place-items-center px-8">
+      <div className="max-w-xl rounded-3xl border border-rose-300/30 bg-rose-500/10 p-8 text-center">
+        <h2 className="text-4xl font-semibold text-rose-200">Profile lookup failed</h2>
+        <p className="mt-3 text-lg text-rose-100/90">{message}</p>
+        <p className="mt-3 text-sm text-rose-100/70">Searched for: {requestedUser}</p>
+      </div>
+    </div>
   );
 }
 
@@ -249,14 +374,15 @@ export default async function Home({ searchParams }: HomePageProps) {
   );
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#1b2838,_#0f1724_42%,_#07111d_100%)] text-slate-100">
-      <Navbar initialValue={requestedUser} />
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 md:px-10 md:py-16">
-        {!requestedUser ? <EmptyState /> : null}
+    <main className="flex min-h-screen bg-[radial-gradient(circle_at_30%_0%,_#0d2345_0%,_#04142e_45%,_#020c1c_100%)] text-slate-100">
+      <Sidebar />
+      <div className="flex-1">
+        <Topbar requestedUser={requestedUser} />
+        {!requestedUser ? <EmptyDashboard /> : null}
         {requestedUser && error ? (
-          <ErrorState message={error.message} requestedUser={requestedUser} />
+          <ErrorDashboard requestedUser={requestedUser} message={error.message} />
         ) : null}
-        {summary ? <ProfileSection summary={summary} /> : null}
+        {summary ? <DashboardContent summary={summary} /> : null}
       </div>
     </main>
   );
