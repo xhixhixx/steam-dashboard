@@ -1,25 +1,20 @@
-import { getSteamUserSummary } from "@/lib/steam";
+import type { NextRequest } from "next/server";
+import {
+  getSteamErrorDetails,
+  getSteamUserSummaryByIdentifier,
+  normalizeSteamIdentifier,
+} from "@/lib/steam";
 
-const DEFAULT_STEAM_USER_ID = process.env.STEAM_USER_ID;
-
-export async function GET() {
-  if (!DEFAULT_STEAM_USER_ID) {
-    return Response.json(
-      {
-        error:
-          "Missing STEAM_USER_ID. Add a hard-coded Steam user id to .env.local.",
-      },
-      { status: 500 },
-    );
-  }
-
+export async function GET(request: NextRequest) {
   try {
-    const summary = await getSteamUserSummary(DEFAULT_STEAM_USER_ID);
+    const user = normalizeSteamIdentifier(
+      request.nextUrl.searchParams.get("user") ?? "",
+    );
+    const summary = await getSteamUserSummaryByIdentifier(user);
     return Response.json(summary);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown Steam API error.";
+    const { message, statusCode } = getSteamErrorDetails(error);
 
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: message }, { status: statusCode });
   }
 }

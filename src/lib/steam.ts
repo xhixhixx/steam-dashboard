@@ -1,4 +1,15 @@
 const STEAM_API_BASE_URL = "https://api.steampowered.com";
+const STEAM_ID64_PATTERN = /^\d{17}$/;
+
+export class SteamLookupError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode = 500) {
+    super(message);
+    this.name = "SteamLookupError";
+    this.statusCode = statusCode;
+  }
+}
 
 export type SteamPlayer = {
   steamid: string;
@@ -36,6 +47,14 @@ type SteamOwnedGamesResponse = {
   };
 };
 
+type SteamResolveVanityUrlResponse = {
+  response: {
+    success: number;
+    steamid?: string;
+    message?: string;
+  };
+};
+
 function getSteamApiKey() {
   const apiKey = process.env.STEAM_API_KEY;
 
@@ -46,6 +65,23 @@ function getSteamApiKey() {
   }
 
   return apiKey;
+}
+
+export function normalizeSteamIdentifier(identifier: string) {
+  const normalized = identifier.trim();
+
+  if (!normalized) {
+    throw new SteamLookupError(
+      "Enter a Steam ID64 or a custom profile name to search.",
+      400,
+    );
+  }
+
+  return normalized;
+}
+
+function isSteamId64(identifier: string) {
+  return STEAM_ID64_PATTERN.test(identifier);
 }
 
 async function fetchSteamJson<T>(
@@ -101,6 +137,56 @@ export async function getSteamUserSummary(
   return {
     player,
     ownedGames,
+  };
+}
+
+export async function resolveSteamUserId(identifier: string) {
+  const normalizedIdentifier = normalizeSteamIdentifier(identifier);
+
+  if (isSteamId64(normalizedIdentifier)) {
+    return normalizedIdentifier;
+  }
+
+  const vanityResponse = await fetchSteamJson<SteamResolveVanityUrlResponse>(
+    "/ISteamUser/ResolveVanityURL/v1/",
+    {
+      vanityurl: normalizedIdentifier,
+    },
+  );
+
+  if (vanityResponse.response.success !== 1 || !vanityResponse.response.steamid) {
+    throw new SteamLookupError(
+      `No Steam profile matched "${normalizedIdentifier}". Try a Steam ID64 or a valid custom profile name.`,
+      404,
+    );
+  }
+
+  return vanityResponse.response.steamid;
+}
+
+export async function getSteamUserSummaryByIdentifier(identifier: string) {
+  const steamUserId = await resolveSteamUserId(identifier);
+  return getSteamUserSummary(steamUserId);
+}
+
+export function getSteamErrorDetails(error: unknown) {
+  if (error instanceof SteamLookupError) {
+    return {
+      message: error.message,
+      statusCode: error.statusCode,
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      statusCode: 500,
+    };
+  }
+
+  return {
+    message: "Unknown Steam API error.",
+    statusCode: 500,
   };
 }
 
