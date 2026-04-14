@@ -17,6 +17,34 @@ function shouldLogSteamApiCacheDebug() {
   return process.env.STEAM_API_CACHE_DEBUG === "1";
 }
 
+function getCacheStatusFromHeaders(headers: Headers) {
+  const nextCacheHeader =
+    headers.get("x-nextjs-cache") ?? headers.get("x-vercel-cache");
+
+  if (nextCacheHeader) {
+    const normalized = nextCacheHeader.toUpperCase();
+    if (normalized.includes("HIT")) {
+      return { cacheStatus: "hit", rawCacheHeader: nextCacheHeader };
+    }
+    if (normalized.includes("MISS")) {
+      return { cacheStatus: "miss", rawCacheHeader: nextCacheHeader };
+    }
+    if (normalized.includes("STALE")) {
+      return { cacheStatus: "stale", rawCacheHeader: nextCacheHeader };
+    }
+    return { cacheStatus: "unknown", rawCacheHeader: nextCacheHeader };
+  }
+
+  const ageHeader = headers.get("age");
+  const ageInSeconds = ageHeader ? Number(ageHeader) : NaN;
+
+  if (Number.isFinite(ageInSeconds) && ageInSeconds > 0) {
+    return { cacheStatus: "hit", rawCacheHeader: "age-header" };
+  }
+
+  return { cacheStatus: "unknown", rawCacheHeader: "n/a" };
+}
+
 export class SteamLookupError extends Error {
   statusCode: number;
 
@@ -137,13 +165,12 @@ async function fetchSteamJson<T>(
   if (shouldLogSteamApiCacheDebug()) {
     const durationMs = Date.now() - startedAt;
     const ageHeader = response.headers.get("age") ?? "n/a";
-    const nextCacheHeader =
-      response.headers.get("x-nextjs-cache") ??
-      response.headers.get("x-vercel-cache") ??
-      "n/a";
+    const { cacheStatus, rawCacheHeader } = getCacheStatusFromHeaders(
+      response.headers,
+    );
 
     console.info(
-      `[steam-cache] path=${path} ttl=${cacheTtlSeconds}s duration=${durationMs}ms age=${ageHeader} nextCache=${nextCacheHeader}`,
+      `[steam-cache] path=${path} ttl=${cacheTtlSeconds}s cache=${cacheStatus} duration=${durationMs}ms age=${ageHeader} cacheHeader=${rawCacheHeader}`,
     );
   }
 
