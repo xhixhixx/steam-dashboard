@@ -7,6 +7,9 @@ const MAX_STEAM_API_CACHE_ENTRIES = 500;
 const STEAMSPY_CACHE_TTL_SECONDS = 86400;
 const MAX_STEAMSPY_CACHE_ENTRIES = 2000;
 const STEAMSPY_CONCURRENT_REQUESTS = 20;
+const MIN_VISIBLE_TAGS = 7;
+const MAX_VISIBLE_TAGS = 14;
+const MAX_OTHER_PERCENTAGE = 20;
 const steamApiResponseCache = new Map<
   string,
   { expiresAtMs: number; payload: unknown }
@@ -363,11 +366,26 @@ export async function getSteamTagBreakdown(
 
     return right[1].count - left[1].count;
   });
-  const visibleTags = sortedTags.slice(0, 7);
-  const remainingTags = sortedTags.slice(7);
+  const totalTaggedGames = playedGames.length || 1;
+  let visibleTagCount = Math.min(MIN_VISIBLE_TAGS, sortedTags.length);
+  let remainingTags = sortedTags.slice(visibleTagCount);
+  let otherTotals = remainingTags.reduce(
+    (aggregate, [, current]) => {
+      aggregate.count += current.count;
+      aggregate.totalMinutes += current.totalMinutes;
+      return aggregate;
+    },
+    { count: 0, totalMinutes: 0 },
+  );
 
-  if (remainingTags.length > 0) {
-    const otherTotals = remainingTags.reduce(
+  while (
+    remainingTags.length > 0 &&
+    visibleTagCount < Math.min(MAX_VISIBLE_TAGS, sortedTags.length) &&
+    (otherTotals.count / totalTaggedGames) * 100 > MAX_OTHER_PERCENTAGE
+  ) {
+    visibleTagCount += 1;
+    remainingTags = sortedTags.slice(visibleTagCount);
+    otherTotals = remainingTags.reduce(
       (aggregate, [, current]) => {
         aggregate.count += current.count;
         aggregate.totalMinutes += current.totalMinutes;
@@ -375,10 +393,13 @@ export async function getSteamTagBreakdown(
       },
       { count: 0, totalMinutes: 0 },
     );
+  }
+
+  const visibleTags = sortedTags.slice(0, visibleTagCount);
+  if (remainingTags.length > 0 && otherTotals.count > 0) {
     visibleTags.push(["Other", otherTotals]);
   }
 
-  const totalTaggedGames = playedGames.length || 1;
   let currentAngle = 0;
   const buckets = visibleTags.map(([label, value], index) => {
     const percentage = (value.count / totalTaggedGames) * 100;
