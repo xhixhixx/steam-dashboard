@@ -82,6 +82,38 @@ type SteamStoreAppDetails = {
 
 type SteamStoreAppDetailsResponse = Record<string, SteamStoreAppDetails>;
 
+function getUserDefinedTags(): Map<number, string[]> {
+  const tagsByAppId = new Map<number, string[]>();
+  const raw = process.env.STEAM_USER_DEFINED_TAGS;
+
+  if (!raw) {
+    return tagsByAppId;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, string[]>;
+
+    for (const [rawAppId, tags] of Object.entries(parsed)) {
+      const appId = Number(rawAppId);
+      if (!Number.isInteger(appId) || !Array.isArray(tags)) {
+        continue;
+      }
+
+      const normalizedTags = tags
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+
+      if (normalizedTags.length > 0) {
+        tagsByAppId.set(appId, normalizedTags);
+      }
+    }
+  } catch {
+    return tagsByAppId;
+  }
+
+  return tagsByAppId;
+}
+
 function getSteamApiKey() {
   const apiKey = process.env.STEAM_API_KEY;
 
@@ -222,10 +254,11 @@ export async function getSteamUserSummary(
   const playedAppIds = ownedGames
     .filter((game) => game.playtime_forever > 0)
     .map((game) => game.appid);
+  const userDefinedTagsByAppId = getUserDefinedTags();
   const tagsByAppId = await getSteamTagsByAppId(playedAppIds);
   const ownedGamesWithTags = ownedGames.map((game) => ({
     ...game,
-    tags: tagsByAppId.get(game.appid) ?? [],
+    tags: userDefinedTagsByAppId.get(game.appid) ?? tagsByAppId.get(game.appid) ?? [],
   }));
   const recentGames = [...(recentGamesSummary.response?.games ?? [])].sort(
     (left, right) => right.playtime_2weeks - left.playtime_2weeks,

@@ -18,6 +18,16 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Optional: custom Playtime DNA tags
+
+You can override Steam genres with your own per-game tags by setting `STEAM_USER_DEFINED_TAGS` in `.env.local` as a JSON object keyed by app id:
+
+```bash
+STEAM_USER_DEFINED_TAGS='{"570":["MOBA","Favorite"],"730":["FPS","Competitive"]}'
+```
+
+When provided, these user-defined tags are used first; Steam genres are used as fallback.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

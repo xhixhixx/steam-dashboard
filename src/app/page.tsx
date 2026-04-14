@@ -111,12 +111,14 @@ function getDashboardMetrics(summary: SteamSummary) {
 function getPlaytimeBuckets(summary: SteamSummary) {
   const palette = [
     "#66C0F4",
-    "#3b82f6",
-    "#0ea5e9",
-    "#0284c7",
-    "#0f3b63",
-    "#1d4ed8",
-    "#2563eb",
+    "#A78BFA",
+    "#F472B6",
+    "#34D399",
+    "#F59E0B",
+    "#F87171",
+    "#22D3EE",
+    "#84CC16",
+    "#FB7185",
   ];
   const tagCounts = new Map<string, number>();
 
@@ -470,7 +472,7 @@ function PlaytimeBreakdown({ summary }: { summary: SteamSummary }) {
         <div>
           <h3 className="text-[15px] font-semibold text-white">Playtime DNA</h3>
           <p className="mt-0.5 text-[12px] text-slate-500">
-            Played games by Steam tag
+            Played games by your tags (or Steam genres)
           </p>
         </div>
         <span className="rounded-full border border-[#1f2937] bg-[#0b1220] px-2 py-1 text-[11px] text-slate-400">
