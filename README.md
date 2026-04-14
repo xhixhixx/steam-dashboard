@@ -42,7 +42,7 @@ Steam API requests are cached using Next.js `fetch` data caching in `src/feature
 - Default cache TTL is `300` seconds (5 minutes).
 - You can override it with `STEAM_API_CACHE_TTL_SECONDS` (for example `86400` for 1 day).
 - Values are clamped to a maximum of `86400` seconds (1 day).
-- Set `STEAM_API_CACHE_DEBUG=1` to print per-request cache debug logs (cache hit/miss status, TTL, duration, and cache-related headers).
+- Set `STEAM_API_CACHE_DEBUG=1` to print per-request cache debug logs (cache hit/miss, cache layer, TTL, duration, and cache-related headers).
 
 > Note: cache lifetime also depends on your deployment's persistence model. Local development does not behave like production caching.
 
@@ -57,7 +57,8 @@ STEAM_API_CACHE_DEBUG=1 npm run dev
 Each Steam API request will emit a line similar to:
 
 ```text
-[steam-cache] path=/IPlayerService/GetOwnedGames/v1/ ttl=300s cache=hit duration=78ms age=15 cacheHeader=HIT
+[steam-cache] path=/IPlayerService/GetOwnedGames/v1/ ttl=300s cache=hit layer=memory duration=0ms
+[steam-cache] path=/IPlayerService/GetOwnedGames/v1/ ttl=300s cache=miss layer=network duration=78ms age=15 cacheHeader=HIT
 ```
 
 In production, view the same logs from your runtime's server logs (for example, `vercel logs` on Vercel or container logs in your host platform).
